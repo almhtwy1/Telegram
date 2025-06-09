@@ -405,7 +405,7 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await help_command(update, context)
     elif text == "👑 لوحة تحكم الأدمن" and is_admin:
         logger.info(f"👑 الأدمن {user_id} يفتح لوحة التحكم")
-        await show_admin_panel(update, context)
+        await admin_menu_command(update, context)
     else:
         # التحقق إذا كان النص يحتوي على معرف مستخدم أو مصطلح بحث للأدمن
         if is_admin and hasattr(context, 'user_data') and context.user_data.get('waiting_for'):
