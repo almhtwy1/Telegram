@@ -26,9 +26,8 @@ def get_keyboard(is_admin=False):
         admin_row1 = ["👥 طلبات الانتظار", "📊 إحصائيات"]
         admin_row2 = ["📋 قائمة المستخدمين", "🔍 البحث"]
         admin_row3 = ["✅ موافقة", "❌ رفض", "🗑️ حذف"]
-        admin_row4 = ["🔔 إشعارات الأدمن"]  # زر جديد للتحكم في إشعارات الأدمن
         
-        basic_keyboard.extend([admin_row1, admin_row2, admin_row3, admin_row4])
+        basic_keyboard.extend([admin_row1, admin_row2, admin_row3])
     
     return ReplyKeyboardMarkup(basic_keyboard, resize_keyboard=True)
 
@@ -190,7 +189,6 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     
     if is_admin:
-        notifications_status = "مفعلة" if settings_manager.is_admin_notifications_enabled() else "معطلة"
         help_text += (
             "\n👑 **أزرار الأدمن:**\n"
             "👥 **طلبات الانتظار** - عرض الطلبات الجديدة\n"
@@ -200,7 +198,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "✅ **موافقة** - قبول مستخدم\n"
             "❌ **رفض** - رفض مستخدم\n"
             "🗑️ **حذف** - حذف مستخدم معتمد\n"
-            f"🔔 **إشعارات الأدمن** - حالياً: {notifications_status}\n"
+            "\n💡 **ملاحظة:** ستصلك إشعارات تلقائية حسب فئاتك المختارة\n"
         )
     
     help_text += f"\n📊 **فئاتك الحالية:** {categories_status}\n"
@@ -445,7 +443,5 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await simple_admin_action(update, context, "reject")
     elif is_admin and text == "🗑️ حذف":
         await simple_admin_action(update, context, "remove")
-    elif is_admin and text == "🔔 إشعارات الأدمن":
-        await toggle_admin_notifications(update, context)
     else:
         await update.message.reply_text("⚠️ أمر غير معروف. استخدم الأزرار.")
