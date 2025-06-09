@@ -6,6 +6,7 @@ from formatter import format_posts_list
 # استيراد مدير الإعدادات
 from settings_manager import settings_manager
 from category_filter import category_filter
+from post_filter import filter_posts_by_category
 
 def get_keyboard():
     """إنشاء لوحة المفاتيح"""
@@ -46,14 +47,16 @@ async def show_posts(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info("📋 طلب عرض المنشورات")
     recent_posts, all_posts = fetch_posts()
     
-    posts_to_show = all_posts[:10] if all_posts else []
-    if not posts_to_show:
-        await update.message.reply_text("⚠️ لا توجد مواضيع متاحة")
+    # تطبيق تصفية الفئات
+    filtered_posts = filter_posts_by_category(all_posts[:10])
+    
+    if not filtered_posts:
+        await update.message.reply_text("⚠️ لا توجد مواضيع متاحة للفئات المختارة")
         return
     
-    message = format_posts_list(posts_to_show, show_index=True)
+    message = format_posts_list(filtered_posts, show_index=True)
     await update.message.reply_markdown(message, disable_web_page_preview=True)
-    logger.info(f"✅ تم عرض {len(posts_to_show)} موضوع")
+    logger.info(f"✅ تم عرض {len(filtered_posts)} موضوع")
 
 async def start_monitoring(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """تفعيل المراقبة"""
@@ -84,16 +87,27 @@ async def select_categories(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="Markdown",
         reply_markup=category_filter.create_category_keyboard()
     )
+
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """عرض المساعدة"""
     if not check_permission(update):
         return
+    
+    # عرض الفئات المختارة
+    selected = settings_manager.get_selected_categories()
+    if len(selected) == 0:
+        categories_status = "جميع الفئات"
+    else:
+        categories_status = f"{len(selected)} فئة مختارة"
     
     await update.message.reply_text(
         "🧭 *الأوامر المتاحة:*\n\n"
         "📋 *عرض الطلبات الجديدة* - أول 10 مواضيع\n"
         "🚨 *تفعيل الرصد التلقائي* - مراقبة كل 30 ثانية\n"
         "⛔️ *إيقاف الرصد* - إيقاف المراقبة\n"
+        "🏷️ *اختيار الفئات* - تخصيص الفئات المطلوبة\n"
         "🧭 *عرض الأوامر* - هذه الرسالة\n\n"
+        f"📊 *الفئات الحالية:* {categories_status}\n"
         "⚡️ يتم إرسال المواضيع الحديثة فقط (أقل من 3 دقائق)",
         parse_mode="Markdown"
     )
