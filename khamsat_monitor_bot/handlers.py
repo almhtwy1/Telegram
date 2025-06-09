@@ -254,8 +254,8 @@ async def handle_admin_input(update: Update, context: ContextTypes.DEFAULT_TYPE)
             user_info = result["info"]
             status_icon = {"معتمد": "✅", "انتظار": "⏳", "مرفوض": "❌"}.get(result["status"], "❓")
             
-            message += f"{status_icon} **{user_info['first_name']}**\n"
-            message += f"   📱 @{user_info['username']}\n"
+            message += f"{status_icon} **{user_info.get('first_name', 'غير معروف')}**\n"
+            message += f"   📱 @{user_info.get('username', 'غير معروف')}\n"
             message += f"   🆔 `{result['user_id']}`\n\n"
         
         await update.message.reply_text(message, parse_mode="Markdown")
@@ -343,16 +343,22 @@ async def list_users_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await update.message.reply_text("📭 لا توجد مستخدمين معتمدين")
         return
     
-    message = "✅ *المستخدمين المعتمدين:*\n\n"
+    message = "✅ **المستخدمين المعتمدين:**\n\n"
     
     for i, user_id in enumerate(approved_users, 1):
-        user_details = user_manager.get_user_details(user_id)
-        user_info = user_details["info"]
+        # البحث عن معلومات المستخدم
+        user_info = user_manager._find_user_info(user_id)
         
-        status_icon = "👑" if user_id == user_manager.admin_id else "👤"
-        message += f"{status_icon} *{i}.* {user_info['first_name']}\n"
-        message += f"   📱 @{user_info['username']}\n"
-        message += f"   🆔 `{user_id}`\n\n"
+        if user_info:
+            status_icon = "👑" if user_id == user_manager.admin_id else "👤"
+            message += f"{status_icon} **{i}.** {user_info['first_name']}\n"
+            message += f"   📱 @{user_info['username']}\n"
+            message += f"   🆔 `{user_id}`\n\n"
+        else:
+            # إذا لم تتوفر معلومات المستخدم
+            status_icon = "👑" if user_id == user_manager.admin_id else "👤"
+            message += f"{status_icon} **{i}.** مستخدم {user_id}\n"
+            message += f"   🆔 `{user_id}`\n\n"
         
         # تجنب الرسائل الطويلة جداً
         if len(message) > 3000:
