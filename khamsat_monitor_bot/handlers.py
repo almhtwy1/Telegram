@@ -156,6 +156,50 @@ async def toggle_admin_notifications(update: Update, context: ContextTypes.DEFAU
             "📋 تذكر اختيار فئاتك المفضلة في `🏷️ اختيار الفئات`",
             parse_mode="Markdown"
         )
+
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """عرض المساعدة"""
+    if not check_permission(update):
+        return
+    
+    user_id = update.effective_user.id
+    is_admin = user_manager.is_admin(user_id)
+    
+    # عرض الفئات المختارة للمستخدم
+    selected = settings_manager.get_selected_categories(user_id)
+    if len(selected) == 0:
+        categories_status = "جميع الفئات"
+    elif "__none__" in selected:
+        categories_status = "لا توجد فئات"
+    else:
+        categories_status = f"{len(selected)} فئة مختارة"
+    
+    help_text = (
+        "🧭 **الأوامر المتاحة:**\n\n"
+        "📋 **عرض الطلبات الجديدة** - أول 10 مواضيع\n"
+        "🚨 **تفعيل الرصد التلقائي** - مراقبة كل 30 ثانية\n"
+        "⛔️ **إيقاف الرصد** - إيقاف المراقبة\n"
+        "🏷️ **اختيار الفئات** - تخصيص فئاتك الشخصية\n"
+    )
+    
+    if is_admin:
+        notifications_status = "مفعلة" if settings_manager.is_admin_notifications_enabled() else "معطلة"
+        help_text += (
+            "\n👑 **أزرار الأدمن:**\n"
+            "👥 **طلبات الانتظار** - عرض الطلبات الجديدة\n"
+            "📊 **إحصائيات** - أرقام مفصلة\n"
+            "📋 **قائمة المستخدمين** - المعتمدين\n"
+            "🔍 **البحث** - العثور على مستخدم\n"
+            "✅ **موافقة** - قبول مستخدم\n"
+            "❌ **رفض** - رفض مستخدم\n"
+            "🗑️ **حذف** - حذف مستخدم معتمد\n"
+            f"🔔 **إشعارات الأدمن** - حالياً: {notifications_status}\n"
+        )
+    
+    help_text += f"\n📊 **فئاتك الحالية:** {categories_status}\n"
+    help_text += "⚡️ يتم إرسال المواضيع الحديثة فقط (أقل من 3 دقائق)"
+    
+    await update.message.reply_text(help_text, parse_mode="Markdown")
     else:
         await update.message.reply_text(
             "🔕 **تم إلغاء إشعارات الأدمن**\n\n"
