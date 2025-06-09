@@ -31,6 +31,10 @@ def check_permission(update: Update):
     user_id = update.effective_user.id
     return user_manager.is_admin(user_id) or user_manager.is_approved(user_id)
 
+def is_monitoring_active():
+    """فحص حالة المراقبة"""
+    return settings_manager.is_monitoring_active()
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """بدء البوت"""
     # فحص صلاحية الوصول أولاً
@@ -121,6 +125,8 @@ async def show_admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     await admin_handlers.show_admin_menu(update, context)
+
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """عرض المساعدة"""
     if not check_permission(update):
         return
@@ -195,7 +201,3 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await admin_handlers.handle_admin_text_input(update, context)
         else:
             await update.message.reply_text("⚠️ أمر غير معروف. استخدم الأزرار.")
-
-def is_monitoring_active():
-    """فحص حالة المراقبة"""
-    return settings_manager.is_monitoring_active()
