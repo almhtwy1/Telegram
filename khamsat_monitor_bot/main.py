@@ -9,10 +9,14 @@ from settings_manager import settings_manager
 from category_filter import category_filter
 from admin_handlers import admin_handlers
 from user_manager import user_manager
+from migration_helper import migrate_old_settings
 
 async def main():
     """الدالة الرئيسية لتشغيل البوت"""
     logger.info("🚀 بدء تشغيل بوت خمسات...")
+    
+    # ترحيل الإعدادات القديمة إذا لزم الأمر
+    migrate_old_settings()
     
     # إنشاء تطبيق البوت
     app = ApplicationBuilder().token(BOT_TOKEN).build()
