@@ -21,8 +21,12 @@ def get_keyboard(is_admin=False):
     ]
     
     if is_admin:
-        # إضافة أزرار خاصة بالأدمن
-        basic_keyboard.append(["👑 لوحة تحكم الأدمن"])
+        # إضافة أزرار خاصة بالأدمن - مبسطة
+        admin_row1 = ["👥 طلبات الانتظار", "📊 إحصائيات"]
+        admin_row2 = ["📋 قائمة المستخدمين", "🔍 البحث"]
+        admin_row3 = ["✅ موافقة", "❌ رفض", "🗑️ حذف"]
+        
+        basic_keyboard.extend([admin_row1, admin_row2, admin_row3])
     
     return ReplyKeyboardMarkup(basic_keyboard, resize_keyboard=True)
 
