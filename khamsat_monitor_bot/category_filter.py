@@ -1,0 +1,118 @@
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ContextTypes, CallbackQueryHandler
+from categories import CATEGORIES
+from settings_manager import settings_manager
+from config import logger
+
+class CategoryFilter:
+    def __init__(self):
+        self.callback_prefix = "cat_"
+    
+    def create_category_keyboard(self):
+        """إنشاء لوحة مفاتيح الفئات"""
+        selected_categories = settings_manager.get_selected_categories()
+        keyboard = []
+        
+        # إضافة أزرار الفئات (صفين في كل صف)
+        categories_list = list(CATEGORIES.keys())
+        for i in range(0, len(categories_list), 2):
+            row = []
+            for j in range(2):
+                if i + j < len(categories_list):
+                    category = categories_list[i + j]
+                    icon = CATEGORIES[category]["icon"]
+                    
+                    # تحديد إذا كانت الفئة مختارة
+                    if len(selected_categories) == 0:  # كل الفئات مختارة
+                        status = "✅"
+                    elif category in selected_categories:
+                        status = "✅"
+                    else:
+                        status = ""
+                    
+                    button_text = f"{status} {icon} {category}"
+                    callback_data = f"{self.callback_prefix}{category}"
+                    row.append(InlineKeyboardButton(button_text, callback_data=callback_data))
+            
+            keyboard.append(row)
+        
+        # إضافة أزرار التحكم
+        control_buttons = [
+            InlineKeyboardButton("🔄 تحديد الكل", callback_data=f"{self.callback_prefix}select_all"),
+            InlineKeyboardButton("❌ إلغاء الكل", callback_data=f"{self.callback_prefix}clear_all")
+        ]
+        keyboard.append(control_buttons)
+        
+        # زر الحفظ والإغلاق
+        keyboard.append([InlineKeyboardButton("✅ حفظ وإغلاق", callback_data=f"{self.callback_prefix}save")])
+        
+        return InlineKeyboardMarkup(keyboard)
+    
+    def get_status_text(self):
+        """نص حالة الفئات المختارة"""
+        selected = settings_manager.get_selected_categories()
+        
+        if len(selected) == 0:
+            return "🏷️ *إعدادات الفئات*\n\n📊 الحالة الحالية: جميع الفئات مفعلة\n\n👆 اختر الفئات التي تريد متابعتها:"
+        else:
+            categories_text = []
+            for category in selected:
+                icon = CATEGORIES[category]["icon"]
+                categories_text.append(f"{icon} {category}")
+            
+            categories_str = " | ".join(categories_text)
+            return f"🏷️ *إعدادات الفئات*\n\n📊 الفئات المختارة:\n{categories_str}\n\n👆 اختر الفئات التي تريد متابعتها:"
+    
+    async def handle_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """معالج استدعاءات الفئات"""
+        query = update.callback_query
+        await query.answer()
+        
+        callback_data = query.data
+        if not callback_data.startswith(self.callback_prefix):
+            return
+        
+        action = callback_data[len(self.callback_prefix):]
+        selected_categories = settings_manager.get_selected_categories().copy()
+        
+        if action == "select_all":
+            # تحديد جميع الفئات (قائمة فارغة = كل الفئات)
+            settings_manager.set_selected_categories([])
+            logger.info("🏷️ تم تحديد جميع الفئات")
+            
+        elif action == "clear_all":
+            # إلغاء جميع الفئات (تحديد فئة واحدة غير موجودة لإيقاف كل شيء)
+            settings_manager.set_selected_categories(["__none__"])
+            logger.info("🏷️ تم إلغاء جميع الفئات")
+            
+        elif action == "save":
+            # حفظ وإغلاق
+            await query.edit_message_text("✅ تم حفظ إعدادات الفئات بنجاح!")
+            return
+            
+        elif action in CATEGORIES:
+            # تبديل حالة فئة معينة
+            if len(selected_categories) == 0:
+                # إذا كانت كل الفئات مختارة، ابدأ بقائمة فارغة واختر هذه الفئة فقط
+                selected_categories = [action]
+            else:
+                # إذا كانت الفئة مختارة، احذفها، وإلا أضفها
+                if action in selected_categories:
+                    selected_categories.remove(action)
+                else:
+                    selected_categories.append(action)
+            
+            settings_manager.set_selected_categories(selected_categories)
+        
+        # تحديث الرسالة
+        try:
+            await query.edit_message_text(
+                self.get_status_text(),
+                parse_mode="Markdown",
+                reply_markup=self.create_category_keyboard()
+            )
+        except Exception as e:
+            logger.error(f"خطأ في تحديث رسالة الفئات: {e}")
+
+# إنشاء مثيل مشترك
+category_filter = CategoryFilter()
