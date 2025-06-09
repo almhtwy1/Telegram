@@ -3,7 +3,7 @@ import nest_asyncio
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters
 
 from config import BOT_TOKEN, logger
-from handlers import start, help_command, handle_buttons, is_monitoring_active
+from handlers import start, help_command, handle_buttons
 from monitor import PostMonitor
 from settings_manager import settings_manager
 
@@ -24,7 +24,7 @@ async def main():
     asyncio.create_task(monitor.monitor_loop(app))
     
     # عرض حالة المراقبة عند بدء التشغيل
-    if is_monitoring_active():
+    if settings_manager.is_monitoring_active():
         logger.info("🟢 البوت سيعمل بوضع المراقبة التلقائية (محفوظ من الجلسة السابقة)")
     else:
         logger.info("🔴 البوت يعمل بوضع يدوي - استخدم /start لتفعيل المراقبة")
