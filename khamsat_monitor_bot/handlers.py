@@ -114,7 +114,13 @@ async def select_categories(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=category_filter.create_category_keyboard()
     )
 
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def show_admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """عرض لوحة تحكم الأدمن"""
+    if not user_manager.is_admin(update.effective_user.id):
+        await update.message.reply_text("🚫 هذا الأمر خاص بالأدمن فقط")
+        return
+    
+    await admin_handlers.show_admin_menu(update, context)
     """عرض المساعدة"""
     if not check_permission(update):
         return
@@ -172,7 +178,7 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # معالجات خاصة بالأدمن
     admin_handlers_dict = {
-        "👑 لوحة تحكم الأدمن": admin_handlers.show_admin_menu
+        "👑 لوحة تحكم الأدمن": show_admin_panel
     }
     
     # دمج المعالجات حسب صلاحية المستخدم
