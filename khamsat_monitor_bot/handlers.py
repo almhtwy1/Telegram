@@ -133,7 +133,187 @@ async def test_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="Markdown"
     )
 
-async def show_admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def admin_menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """عرض قائمة أوامر الأدمن (بديل بسيط)"""
+    user_id = update.effective_user.id
+    
+    if not user_manager.is_admin(user_id):
+        await update.message.reply_text("🚫 هذا الأمر خاص بالأدمن فقط")
+        return
+    
+    stats = user_manager.get_stats()
+    
+    menu_text = (
+        "👑 *قائمة أوامر الأدمن*\n\n"
+        f"📊 *الإحصائيات:*\n"
+        f"✅ المعتمدين: {stats['approved']}\n"
+        f"⏳ في الانتظار: {stats['pending']}\n"
+        f"❌ المرفوضين: {stats['rejected']}\n\n"
+        
+        "🛠️ *الأوامر المتاحة:*\n"
+        "/pending - عرض طلبات الانتظار\n"
+        "/approve معرف_المستخدم - الموافقة على مستخدم\n"
+        "/reject معرف_المستخدم - رفض مستخدم\n"
+        "/remove معرف_المستخدم - حذف مستخدم\n"
+        "/search نص_البحث - البحث عن مستخدم\n"
+        "/list - قائمة المستخدمين المعتمدين\n"
+        "/stats - الإحصائيات المفصلة\n\n"
+        
+        "💡 *مثال:* `/approve 123456789`"
+    )
+    
+    await update.message.reply_text(menu_text, parse_mode="Markdown")
+
+async def approve_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """الموافقة على مستخدم"""
+    if not user_manager.is_admin(update.effective_user.id):
+        await update.message.reply_text("🚫 هذا الأمر خاص بالأدمن فقط")
+        return
+    
+    if not context.args:
+        await update.message.reply_text("❌ استخدم: `/approve معرف_المستخدم`\nمثال: `/approve 123456789`", parse_mode="Markdown")
+        return
+    
+    try:
+        user_id = int(context.args[0])
+        user_info = user_manager.approve_user(user_id)
+        
+        if user_info:
+            await update.message.reply_text(f"✅ تم قبول المستخدم: {user_info['first_name']}")
+            
+            # إرسال إشعار للمستخدم
+            try:
+                await context.bot.send_message(
+                    chat_id=user_id,
+                    text="🎉 تم قبول طلب اشتراكك في البوت!\nيمكنك الآن استخدام جميع الميزات.\nأرسل /start للبدء."
+                )
+            except:
+                pass
+        else:
+            await update.message.reply_text("❌ المستخدم غير موجود في قائمة الانتظار")
+    except ValueError:
+        await update.message.reply_text("❌ معرف المستخدم يجب أن يكون رقماً")
+
+async def reject_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """رفض مستخدم"""
+    if not user_manager.is_admin(update.effective_user.id):
+        await update.message.reply_text("🚫 هذا الأمر خاص بالأدمن فقط")
+        return
+    
+    if not context.args:
+        await update.message.reply_text("❌ استخدم: `/reject معرف_المستخدم`\nمثال: `/reject 123456789`", parse_mode="Markdown")
+        return
+    
+    try:
+        user_id = int(context.args[0])
+        user_info = user_manager.reject_user(user_id)
+        
+        if user_info:
+            await update.message.reply_text(f"❌ تم رفض المستخدم: {user_info['first_name']}")
+            
+            # إرسال إشعار للمستخدم
+            try:
+                await context.bot.send_message(
+                    chat_id=user_id,
+                    text="😔 تم رفض طلب اشتراكك في البوت."
+                )
+            except:
+                pass
+        else:
+            await update.message.reply_text("❌ المستخدم غير موجود في قائمة الانتظار")
+    except ValueError:
+        await update.message.reply_text("❌ معرف المستخدم يجب أن يكون رقماً")
+
+async def remove_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """حذف مستخدم"""
+    if not user_manager.is_admin(update.effective_user.id):
+        await update.message.reply_text("🚫 هذا الأمر خاص بالأدمن فقط")
+        return
+    
+    if not context.args:
+        await update.message.reply_text("❌ استخدم: `/remove معرف_المستخدم`\nمثال: `/remove 123456789`", parse_mode="Markdown")
+        return
+    
+    try:
+        user_id = int(context.args[0])
+        success, message = user_manager.remove_user(user_id)
+        
+        if success:
+            await update.message.reply_text(f"✅ {message}")
+            
+            # إرسال إشعار للمستخدم
+            try:
+                await context.bot.send_message(
+                    chat_id=user_id,
+                    text="🚫 تم إلغاء اشتراكك في البوت من قبل الإدارة."
+                )
+            except:
+                pass
+        else:
+            await update.message.reply_text(f"❌ {message}")
+    except ValueError:
+        await update.message.reply_text("❌ معرف المستخدم يجب أن يكون رقماً")
+
+async def search_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """البحث عن مستخدم"""
+    if not user_manager.is_admin(update.effective_user.id):
+        await update.message.reply_text("🚫 هذا الأمر خاص بالأدمن فقط")
+        return
+    
+    if not context.args:
+        await update.message.reply_text("❌ استخدم: `/search نص_البحث`\nمثال: `/search أحمد`", parse_mode="Markdown")
+        return
+    
+    search_term = " ".join(context.args)
+    results = user_manager.search_user(search_term)
+    
+    if not results:
+        await update.message.reply_text(f"🔍 لم يتم العثور على مستخدمين بالبحث: `{search_term}`", parse_mode="Markdown")
+        return
+    
+    message = f"🔍 *نتائج البحث عن:* `{search_term}`\n\n"
+    
+    for result in results[:10]:
+        user_info = result["info"]
+        status_icon = {"معتمد": "✅", "انتظار": "⏳", "مرفوض": "❌"}.get(result["status"], "❓")
+        
+        message += f"{status_icon} *{user_info['first_name']}*\n"
+        message += f"   📱 @{user_info['username']}\n"
+        message += f"   🆔 `{result['user_id']}`\n"
+        message += f"   📊 {result['status']}\n\n"
+    
+    await update.message.reply_text(message, parse_mode="Markdown")
+
+async def list_users_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """قائمة المستخدمين المعتمدين"""
+    if not user_manager.is_admin(update.effective_user.id):
+        await update.message.reply_text("🚫 هذا الأمر خاص بالأدمن فقط")
+        return
+    
+    approved_users = user_manager.get_approved_users()
+    
+    if not approved_users:
+        await update.message.reply_text("📭 لا توجد مستخدمين معتمدين")
+        return
+    
+    message = "✅ *المستخدمين المعتمدين:*\n\n"
+    
+    for i, user_id in enumerate(approved_users, 1):
+        user_details = user_manager.get_user_details(user_id)
+        user_info = user_details["info"]
+        
+        status_icon = "👑" if user_id == user_manager.admin_id else "👤"
+        message += f"{status_icon} *{i}.* {user_info['first_name']}\n"
+        message += f"   📱 @{user_info['username']}\n"
+        message += f"   🆔 `{user_id}`\n\n"
+        
+        # تجنب الرسائل الطويلة جداً
+        if len(message) > 3000:
+            await update.message.reply_text(message, parse_mode="Markdown")
+            message = ""
+    
+    if message:
+        await update.message.reply_text(message, parse_mode="Markdown")
     """عرض لوحة تحكم الأدمن"""
     user_id = update.effective_user.id
     logger.info(f"👑 طلب فتح لوحة تحكم الأدمن من المستخدم {user_id}")
