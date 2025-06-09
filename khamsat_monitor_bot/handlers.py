@@ -5,13 +5,14 @@ from scraper import fetch_posts
 from formatter import format_posts_list
 # استيراد مدير الإعدادات
 from settings_manager import settings_manager
+from category_filter import category_filter
 
 def get_keyboard():
     """إنشاء لوحة المفاتيح"""
     return ReplyKeyboardMarkup([
         ["📋 عرض الطلبات الجديدة"],
         ["🚨 تفعيل الرصد التلقائي", "⛔️ إيقاف الرصد"],
-        ["🧭 عرض الأوامر"]
+        ["🏷️ اختيار الفئات", "🧭 عرض الأوامر"]
     ], resize_keyboard=True)
 
 def check_permission(update: Update):
@@ -72,7 +73,17 @@ async def stop_monitoring(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info("⛔️ تم إيقاف الرصد التلقائي")
     await update.message.reply_text("⛔️ تم إيقاف الرصد")
 
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def select_categories(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """عرض قائمة اختيار الفئات"""
+    if not check_permission(update):
+        return
+    
+    logger.info("🏷️ طلب عرض إعدادات الفئات")
+    await update.message.reply_text(
+        category_filter.get_status_text(),
+        parse_mode="Markdown",
+        reply_markup=category_filter.create_category_keyboard()
+    )
     """عرض المساعدة"""
     if not check_permission(update):
         return
@@ -97,6 +108,7 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "📋 عرض الطلبات الجديدة": show_posts,
         "🚨 تفعيل الرصد التلقائي": start_monitoring,
         "⛔️ إيقاف الرصد": stop_monitoring,
+        "🏷️ اختيار الفئات": select_categories,
         "🧭 عرض الأوامر": help_command
     }
     
