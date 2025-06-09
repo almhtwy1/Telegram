@@ -3,7 +3,7 @@ import nest_asyncio
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, filters
 
 from config import BOT_TOKEN, logger
-from handlers import start, help_command, handle_buttons
+from handlers import start, help_command, handle_buttons, show_admin_panel
 from monitor import PostMonitor
 from settings_manager import settings_manager
 from category_filter import category_filter
@@ -24,7 +24,7 @@ async def main():
     # إضافة معالجات الأوامر الأساسية
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", help_command))
-    app.add_handler(CommandHandler("admin", admin_handlers.show_admin_menu))
+    app.add_handler(CommandHandler("admin", show_admin_panel))
     app.add_handler(CommandHandler("pending", admin_handlers.show_pending_users))
     app.add_handler(CommandHandler("stats", admin_handlers.show_stats))
     app.add_handler(CommandHandler("cancel", lambda update, context: update.message.reply_text("❌ تم إلغاء العملية")))
