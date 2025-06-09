@@ -132,6 +132,22 @@ async def test_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"معرف الأدمن المحدد: `{user_manager.admin_id}`",
         parse_mode="Markdown"
     )
+
+async def show_admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """عرض لوحة تحكم الأدمن"""
+    user_id = update.effective_user.id
+    logger.info(f"👑 طلب فتح لوحة تحكم الأدمن من المستخدم {user_id}")
+    
+    if not user_manager.is_admin(user_id):
+        await update.message.reply_text("🚫 هذا الأمر خاص بالأدمن فقط")
+        return
+    
+    try:
+        await admin_handlers.show_admin_menu(update, context)
+        logger.info("✅ تم فتح لوحة تحكم الأدمن بنجاح")
+    except Exception as e:
+        logger.error(f"❌ خطأ في فتح لوحة تحكم الأدمن: {e}")
+        await update.message.reply_text("❌ حدث خطأ في فتح لوحة التحكم")
     """عرض لوحة تحكم الأدمن"""
     user_id = update.effective_user.id
     logger.info(f"👑 طلب فتح لوحة تحكم الأدمن من المستخدم {user_id}")
