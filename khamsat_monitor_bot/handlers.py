@@ -118,7 +118,20 @@ async def select_categories(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=category_filter.create_category_keyboard()
     )
 
-async def show_admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def test_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """اختبار صلاحيات الأدمن"""
+    user_id = update.effective_user.id
+    is_admin = user_manager.is_admin(user_id)
+    is_approved = user_manager.is_approved(user_id)
+    
+    await update.message.reply_text(
+        f"🔍 *اختبار الصلاحيات:*\n\n"
+        f"🆔 معرفك: `{user_id}`\n"
+        f"👑 أدمن: {'✅ نعم' if is_admin else '❌ لا'}\n"
+        f"✅ معتمد: {'✅ نعم' if is_approved else '❌ لا'}\n\n"
+        f"معرف الأدمن المحدد: `{user_manager.admin_id}`",
+        parse_mode="Markdown"
+    )
     """عرض لوحة تحكم الأدمن"""
     user_id = update.effective_user.id
     logger.info(f"👑 طلب فتح لوحة تحكم الأدمن من المستخدم {user_id}")
