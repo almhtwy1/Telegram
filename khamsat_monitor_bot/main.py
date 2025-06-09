@@ -3,7 +3,9 @@ import nest_asyncio
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, filters
 
 from config import BOT_TOKEN, logger
-from handlers import start, help_command, handle_buttons, show_admin_panel, test_admin
+from handlers import (start, help_command, handle_buttons, show_admin_panel, test_admin,
+                     admin_menu_command, approve_user_command, reject_user_command, 
+                     remove_user_command, search_user_command, list_users_command)
 from monitor import PostMonitor
 from settings_manager import settings_manager
 from category_filter import category_filter
@@ -24,11 +26,21 @@ async def main():
     # إضافة معالجات الأوامر الأساسية
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", help_command))
-    app.add_handler(CommandHandler("admin", show_admin_panel))
+    
+    # أوامر الأدمن
+    app.add_handler(CommandHandler("admin", admin_menu_command))
+    app.add_handler(CommandHandler("menu", admin_menu_command))
     app.add_handler(CommandHandler("test", test_admin))
     app.add_handler(CommandHandler("pending", admin_handlers.show_pending_users))
     app.add_handler(CommandHandler("stats", admin_handlers.show_stats))
+    app.add_handler(CommandHandler("approve", approve_user_command))
+    app.add_handler(CommandHandler("reject", reject_user_command))
+    app.add_handler(CommandHandler("remove", remove_user_command))
+    app.add_handler(CommandHandler("search", search_user_command))
+    app.add_handler(CommandHandler("list", list_users_command))
     app.add_handler(CommandHandler("cancel", lambda update, context: update.message.reply_text("❌ تم إلغاء العملية")))
+    
+    # معالج الرسائل العادية
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_buttons))
     
     # إضافة معالجات الاستدعاءات التفاعلية
