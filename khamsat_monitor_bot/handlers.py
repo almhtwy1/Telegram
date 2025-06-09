@@ -7,36 +7,56 @@ from formatter import format_posts_list
 from settings_manager import settings_manager
 from category_filter import category_filter
 from post_filter import filter_posts_by_category
+# استيراد نظام التحكم في الوصول
+from access_control import access_control
+from user_manager import user_manager
+from admin_handlers import admin_handlers
 
-def get_keyboard():
+def get_keyboard(is_admin=False):
     """إنشاء لوحة المفاتيح"""
-    return ReplyKeyboardMarkup([
+    basic_keyboard = [
         ["📋 عرض الطلبات الجديدة"],
         ["🚨 تفعيل الرصد التلقائي", "⛔️ إيقاف الرصد"],
         ["🏷️ اختيار الفئات", "🧭 عرض الأوامر"]
-    ], resize_keyboard=True)
+    ]
+    
+    if is_admin:
+        # إضافة أزرار خاصة بالأدمن
+        basic_keyboard.append(["👥 طلبات الانتظار", "📊 إحصائيات المستخدمين"])
+    
+    return ReplyKeyboardMarkup(basic_keyboard, resize_keyboard=True)
 
 def check_permission(update: Update):
-    """فحص صلاحية المستخدم"""
-    return update.effective_user.id == ALLOWED_USER_ID
+    """فحص صلاحية المستخدم - الآن يدعم المستخدمين المعتمدين"""
+    user_id = update.effective_user.id
+    return user_manager.is_admin(user_id) or user_manager.is_approved(user_id)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """بدء البوت"""
-    if not check_permission(update):
-        await update.message.reply_text("🚫 لا تملك صلاحية استخدام هذا البوت.")
+    # فحص صلاحية الوصول أولاً
+    if not await access_control.check_user_access(update, context):
         return
-
-    logger.info("🚀 تم بدء البوت")
+    
+    user_id = update.effective_user.id
+    is_admin = user_manager.is_admin(user_id)
+    
+    logger.info(f"🚀 تم بدء البوت - المستخدم: {update.effective_user.first_name}")
     
     # عرض حالة المراقبة الحالية
     monitoring_status = "🟢 مفعل" if settings_manager.is_monitoring_active() else "🔴 معطل"
     
+    welcome_message = f"🔥 بوت مراقبة خمسات\n"
+    welcome_message += f"📈 يعرض المواضيع الحديثة فقط (أقل من 3 دقائق)\n"
+    welcome_message += f"📊 حالة الرصد التلقائي: {monitoring_status}\n"
+    
+    if is_admin:
+        welcome_message += f"\n👑 مرحباً بك أيها الأدمن!"
+    
+    welcome_message += f"\n\nاختر أمرًا:"
+    
     await update.message.reply_text(
-        f"🔥 بوت مراقبة خمسات\n"
-        f"📈 يعرض المواضيع الحديثة فقط (أقل من 3 دقائق)\n"
-        f"📊 حالة الرصد التلقائي: {monitoring_status}\n\n"
-        f"اختر أمرًا:",
-        reply_markup=get_keyboard()
+        welcome_message,
+        reply_markup=get_keyboard(is_admin)
     )
 
 async def show_posts(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -118,13 +138,28 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     text = update.message.text
-    handlers = {
+    user_id = update.effective_user.id
+    is_admin = user_manager.is_admin(user_id)
+    
+    # المعالجات الأساسية
+    basic_handlers = {
         "📋 عرض الطلبات الجديدة": show_posts,
         "🚨 تفعيل الرصد التلقائي": start_monitoring,
         "⛔️ إيقاف الرصد": stop_monitoring,
         "🏷️ اختيار الفئات": select_categories,
         "🧭 عرض الأوامر": help_command
     }
+    
+    # معالجات خاصة بالأدمن
+    admin_handlers_dict = {
+        "👥 طلبات الانتظار": admin_handlers.show_pending_users,
+        "📊 إحصائيات المستخدمين": admin_handlers.show_stats
+    }
+    
+    # دمج المعالجات حسب صلاحية المستخدم
+    handlers = basic_handlers.copy()
+    if is_admin:
+        handlers.update(admin_handlers_dict)
     
     handler = handlers.get(text)
     if handler:
