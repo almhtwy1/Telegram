@@ -156,6 +156,13 @@ async def toggle_admin_notifications(update: Update, context: ContextTypes.DEFAU
             "📋 تذكر اختيار فئاتك المفضلة في `🏷️ اختيار الفئات`",
             parse_mode="Markdown"
         )
+    else:
+        await update.message.reply_text(
+            "🔕 **تم إلغاء إشعارات الأدمن**\n\n"
+            "❌ لن تصلك إشعارات تلقائية\n"
+            "📋 يمكنك مراجعة المواضيع يدوياً بـ `📋 عرض الطلبات الجديدة`",
+            parse_mode="Markdown"
+        )
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """عرض المساعدة"""
@@ -200,53 +207,6 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     help_text += "⚡️ يتم إرسال المواضيع الحديثة فقط (أقل من 3 دقائق)"
     
     await update.message.reply_text(help_text, parse_mode="Markdown")
-    else:
-        await update.message.reply_text(
-            "🔕 **تم إلغاء إشعارات الأدمن**\n\n"
-            "❌ لن تصلك إشعارات تلقائية\n"
-            "📋 يمكنك مراجعة المواضيع يدوياً بـ `📋 عرض الطلبات الجديدة`",
-            parse_mode="Markdown"
-        )
-    """عرض المساعدة"""
-    if not check_permission(update):
-        return
-    
-    user_id = update.effective_user.id
-    is_admin = user_manager.is_admin(user_id)
-    
-    # عرض الفئات المختارة للمستخدم
-    selected = settings_manager.get_selected_categories(user_id)
-    if len(selected) == 0:
-        categories_status = "جميع الفئات"
-    elif "__none__" in selected:
-        categories_status = "لا توجد فئات"
-    else:
-        categories_status = f"{len(selected)} فئة مختارة"
-    
-    help_text = (
-        "🧭 **الأوامر المتاحة:**\n\n"
-        "📋 **عرض الطلبات الجديدة** - أول 10 مواضيع\n"
-        "🚨 **تفعيل الرصد التلقائي** - مراقبة كل 30 ثانية\n"
-        "⛔️ **إيقاف الرصد** - إيقاف المراقبة\n"
-        "🏷️ **اختيار الفئات** - تخصيص فئاتك الشخصية\n"
-    )
-    
-    if is_admin:
-        help_text += (
-            "\n👑 **أزرار الأدمن:**\n"
-            "👥 **طلبات الانتظار** - عرض الطلبات الجديدة\n"
-            "📊 **إحصائيات** - أرقام مفصلة\n"
-            "📋 **قائمة المستخدمين** - المعتمدين\n"
-            "🔍 **البحث** - العثور على مستخدم\n"
-            "✅ **موافقة** - قبول مستخدم\n"
-            "❌ **رفض** - رفض مستخدم\n"
-            "🗑️ **حذف** - حذف مستخدم معتمد\n"
-        )
-    
-    help_text += f"\n📊 **فئاتك الحالية:** {categories_status}\n"
-    help_text += "⚡️ يتم إرسال المواضيع الحديثة فقط (أقل من 3 دقائق)"
-    
-    await update.message.reply_text(help_text, parse_mode="Markdown")
 
 # دوال الأدمن البسيطة
 async def simple_admin_action(update: Update, context: ContextTypes.DEFAULT_TYPE, action):
@@ -255,13 +215,10 @@ async def simple_admin_action(update: Update, context: ContextTypes.DEFAULT_TYPE
     
     if action == "pending":
         await admin_handlers.show_pending_users(update, context)
-        
     elif action == "stats":
         await admin_handlers.show_stats(update, context)
-        
     elif action == "list":
         await list_users_command(update, context)
-        
     elif action == "search":
         set_admin_state(user_id, "waiting_search")
         await update.message.reply_text(
@@ -269,7 +226,6 @@ async def simple_admin_action(update: Update, context: ContextTypes.DEFAULT_TYPE
             "أرسل اسم المستخدم أو جزء منه:",
             parse_mode="Markdown"
         )
-        
     elif action == "approve":
         set_admin_state(user_id, "waiting_approve")
         await update.message.reply_text(
@@ -278,7 +234,6 @@ async def simple_admin_action(update: Update, context: ContextTypes.DEFAULT_TYPE
             "مثال: `123456789`",
             parse_mode="Markdown"
         )
-        
     elif action == "reject":
         set_admin_state(user_id, "waiting_reject")
         await update.message.reply_text(
@@ -287,7 +242,6 @@ async def simple_admin_action(update: Update, context: ContextTypes.DEFAULT_TYPE
             "مثال: `123456789`",
             parse_mode="Markdown"
         )
-        
     elif action == "remove":
         set_admin_state(user_id, "waiting_remove")
         await update.message.reply_text(
@@ -493,6 +447,5 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await simple_admin_action(update, context, "remove")
     elif is_admin and text == "🔔 إشعارات الأدمن":
         await toggle_admin_notifications(update, context)
-        
     else:
         await update.message.reply_text("⚠️ أمر غير معروف. استخدم الأزرار.")
