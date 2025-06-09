@@ -11,6 +11,7 @@ from post_filter import filter_posts_by_category
 from access_control import access_control
 from user_manager import user_manager
 from admin_handlers import admin_handlers
+from admin_state import set_admin_state, get_admin_state, clear_admin_state
 
 def get_keyboard(is_admin=False):
     """إنشاء لوحة المفاتيح"""
@@ -347,7 +348,150 @@ async def list_users_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
         logger.error(f"❌ خطأ في فتح لوحة تحكم الأدمن: {e}")
         await update.message.reply_text("❌ حدث خطأ في فتح لوحة التحكم")
 
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def simple_admin_action(update: Update, context: ContextTypes.DEFAULT_TYPE, action):
+    """معالج بسيط لأعمال الأدمن"""
+    user_id = update.effective_user.id
+    
+    if action == "pending":
+        await admin_handlers.show_pending_users(update, context)
+        
+    elif action == "stats":
+        await admin_handlers.show_stats(update, context)
+        
+    elif action == "list":
+        await list_users_command(update, context)
+        
+    elif action == "search":
+        set_admin_state(user_id, "waiting_search")
+        await update.message.reply_text(
+            "🔍 **البحث عن مستخدم**\n\n"
+            "أرسل اسم المستخدم أو جزء منه:",
+            parse_mode="Markdown"
+        )
+        
+    elif action == "approve":
+        set_admin_state(user_id, "waiting_approve")
+        await update.message.reply_text(
+            "✅ **الموافقة على مستخدم**\n\n"
+            "أرسل معرف المستخدم (ID):\n"
+            "مثال: `123456789`",
+            parse_mode="Markdown"
+        )
+        
+    elif action == "reject":
+        set_admin_state(user_id, "waiting_reject")
+        await update.message.reply_text(
+            "❌ **رفض مستخدم**\n\n"
+            "أرسل معرف المستخدم (ID):\n"
+            "مثال: `123456789`",
+            parse_mode="Markdown"
+        )
+        
+    elif action == "remove":
+        set_admin_state(user_id, "waiting_remove")
+        await update.message.reply_text(
+            "🗑️ **حذف مستخدم**\n\n"
+            "أرسل معرف المستخدم (ID):\n"
+            "مثال: `123456789`\n\n"
+            "⚠️ سيتم حذفه نهائياً!",
+            parse_mode="Markdown"
+        )
+
+async def handle_admin_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """معالج مدخلات الأدمن"""
+    user_id = update.effective_user.id
+    text = update.message.text.strip()
+    state_info = get_admin_state(user_id)
+    
+    if not state_info:
+        return False  # ليس في حالة انتظار
+    
+    state = state_info.get("state")
+    
+    if state == "waiting_search":
+        clear_admin_state(user_id)
+        results = user_manager.search_user(text)
+        
+        if not results:
+            await update.message.reply_text(f"🔍 لم يتم العثور على: `{text}`", parse_mode="Markdown")
+            return True
+        
+        message = f"🔍 **نتائج البحث عن:** `{text}`\n\n"
+        for result in results[:10]:
+            user_info = result["info"]
+            status_icon = {"معتمد": "✅", "انتظار": "⏳", "مرفوض": "❌"}.get(result["status"], "❓")
+            
+            message += f"{status_icon} **{user_info['first_name']}**\n"
+            message += f"   📱 @{user_info['username']}\n"
+            message += f"   🆔 `{result['user_id']}`\n\n"
+        
+        await update.message.reply_text(message, parse_mode="Markdown")
+        return True
+        
+    elif state == "waiting_approve":
+        clear_admin_state(user_id)
+        try:
+            target_user_id = int(text)
+            user_info = user_manager.approve_user(target_user_id)
+            
+            if user_info:
+                await update.message.reply_text(f"✅ تم قبول: {user_info['first_name']}")
+                try:
+                    await context.bot.send_message(
+                        chat_id=target_user_id,
+                        text="🎉 تم قبول طلبك! أرسل /start للبدء."
+                    )
+                except:
+                    pass
+            else:
+                await update.message.reply_text("❌ المستخدم غير موجود في قائمة الانتظار")
+        except ValueError:
+            await update.message.reply_text("❌ يجب أن يكون رقماً")
+        return True
+        
+    elif state == "waiting_reject":
+        clear_admin_state(user_id)
+        try:
+            target_user_id = int(text)
+            user_info = user_manager.reject_user(target_user_id)
+            
+            if user_info:
+                await update.message.reply_text(f"❌ تم رفض: {user_info['first_name']}")
+                try:
+                    await context.bot.send_message(
+                        chat_id=target_user_id,
+                        text="😔 تم رفض طلبك."
+                    )
+                except:
+                    pass
+            else:
+                await update.message.reply_text("❌ المستخدم غير موجود في قائمة الانتظار")
+        except ValueError:
+            await update.message.reply_text("❌ يجب أن يكون رقماً")
+        return True
+        
+    elif state == "waiting_remove":
+        clear_admin_state(user_id)
+        try:
+            target_user_id = int(text)
+            success, message = user_manager.remove_user(target_user_id)
+            
+            if success:
+                await update.message.reply_text(f"✅ {message}")
+                try:
+                    await context.bot.send_message(
+                        chat_id=target_user_id,
+                        text="🚫 تم إلغاء اشتراكك."
+                    )
+                except:
+                    pass
+            else:
+                await update.message.reply_text(f"❌ {message}")
+        except ValueError:
+            await update.message.reply_text("❌ يجب أن يكون رقماً")
+        return True
+    
+    return False
     """عرض المساعدة"""
     if not check_permission(update):
         return
@@ -396,6 +540,10 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     logger.info(f"🔘 المستخدم {user_id} ضغط على: {text}")
     
+    # أولاً، فحص إذا كان المستخدم في حالة انتظار إدخال
+    if is_admin and await handle_admin_input(update, context):
+        return
+    
     # معالجة الأزرار الأساسية
     if text == "📋 عرض الطلبات الجديدة":
         await show_posts(update, context)
@@ -407,12 +555,22 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await select_categories(update, context)
     elif text == "🧭 عرض الأوامر":
         await help_command(update, context)
-    elif text == "👑 لوحة تحكم الأدمن" and is_admin:
-        logger.info(f"👑 الأدمن {user_id} يفتح لوحة التحكم")
-        await admin_menu_command(update, context)
+        
+    # أزرار الأدمن البسيطة
+    elif is_admin and text == "👥 طلبات الانتظار":
+        await simple_admin_action(update, context, "pending")
+    elif is_admin and text == "📊 إحصائيات":
+        await simple_admin_action(update, context, "stats")
+    elif is_admin and text == "📋 قائمة المستخدمين":
+        await simple_admin_action(update, context, "list")
+    elif is_admin and text == "🔍 البحث":
+        await simple_admin_action(update, context, "search")
+    elif is_admin and text == "✅ موافقة":
+        await simple_admin_action(update, context, "approve")
+    elif is_admin and text == "❌ رفض":
+        await simple_admin_action(update, context, "reject")
+    elif is_admin and text == "🗑️ حذف":
+        await simple_admin_action(update, context, "remove")
+        
     else:
-        # التحقق إذا كان النص يحتوي على معرف مستخدم أو مصطلح بحث للأدمن
-        if is_admin and hasattr(context, 'user_data') and context.user_data.get('waiting_for'):
-            await admin_handlers.handle_admin_text_input(update, context)
-        else:
-            await update.message.reply_text("⚠️ أمر غير معروف. استخدم الأزرار.")
+        await update.message.reply_text("⚠️ أمر غير معروف. استخدم الأزرار.")
