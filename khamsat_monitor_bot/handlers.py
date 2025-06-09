@@ -26,8 +26,9 @@ def get_keyboard(is_admin=False):
         admin_row1 = ["👥 طلبات الانتظار", "📊 إحصائيات"]
         admin_row2 = ["📋 قائمة المستخدمين", "🔍 البحث"]
         admin_row3 = ["✅ موافقة", "❌ رفض", "🗑️ حذف"]
+        admin_row4 = ["🔔 إشعارات الأدمن"]  # زر جديد للتحكم في إشعارات الأدمن
         
-        basic_keyboard.extend([admin_row1, admin_row2, admin_row3])
+        basic_keyboard.extend([admin_row1, admin_row2, admin_row3, admin_row4])
     
     return ReplyKeyboardMarkup(basic_keyboard, resize_keyboard=True)
 
@@ -138,7 +139,30 @@ async def test_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="Markdown"
     )
 
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def toggle_admin_notifications(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """تبديل حالة إشعارات الأدمن"""
+    if not user_manager.is_admin(update.effective_user.id):
+        await update.message.reply_text("🚫 هذا الأمر خاص بالأدمن فقط")
+        return
+    
+    current_status = settings_manager.is_admin_notifications_enabled()
+    new_status = not current_status
+    settings_manager.set_admin_notifications(new_status)
+    
+    if new_status:
+        await update.message.reply_text(
+            "🔔 **تم تفعيل إشعارات الأدمن**\n\n"
+            "✅ ستصلك الآن إشعارات بالمواضيع الجديدة\n"
+            "📋 تذكر اختيار فئاتك المفضلة في `🏷️ اختيار الفئات`",
+            parse_mode="Markdown"
+        )
+    else:
+        await update.message.reply_text(
+            "🔕 **تم إلغاء إشعارات الأدمن**\n\n"
+            "❌ لن تصلك إشعارات تلقائية\n"
+            "📋 يمكنك مراجعة المواضيع يدوياً بـ `📋 عرض الطلبات الجديدة`",
+            parse_mode="Markdown"
+        )
     """عرض المساعدة"""
     if not check_permission(update):
         return
@@ -423,6 +447,8 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await simple_admin_action(update, context, "reject")
     elif is_admin and text == "🗑️ حذف":
         await simple_admin_action(update, context, "remove")
+    elif is_admin and text == "🔔 إشعارات الأدمن":
+        await toggle_admin_notifications(update, context)
         
     else:
         await update.message.reply_text("⚠️ أمر غير معروف. استخدم الأزرار.")
