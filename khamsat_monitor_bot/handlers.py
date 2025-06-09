@@ -26,10 +26,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     logger.info("🚀 تم بدء البوت")
+    
+    # عرض حالة المراقبة الحالية
+    monitoring_status = "🟢 مفعل" if settings_manager.is_monitoring_active() else "🔴 معطل"
+    
     await update.message.reply_text(
-        "🔥 بوت مراقبة خمسات\n"
-        "📈 يعرض المواضيع الحديثة فقط (أقل من 3 دقائق)\n"
-        "اختر أمرًا:",
+        f"🔥 بوت مراقبة خمسات\n"
+        f"📈 يعرض المواضيع الحديثة فقط (أقل من 3 دقائق)\n"
+        f"📊 حالة الرصد التلقائي: {monitoring_status}\n\n"
+        f"اختر أمرًا:",
         reply_markup=get_keyboard()
     )
 
