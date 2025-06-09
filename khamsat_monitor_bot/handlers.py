@@ -64,11 +64,12 @@ async def show_posts(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not check_permission(update):
         return
     
-    logger.info("📋 طلب عرض المنشورات")
+    user_id = update.effective_user.id
+    logger.info(f"📋 طلب عرض المنشورات من المستخدم {user_id}")
     recent_posts, all_posts = fetch_posts()
     
-    # تطبيق تصفية الفئات
-    filtered_posts = filter_posts_by_category(all_posts[:10])
+    # تطبيق تصفية الفئات الشخصية
+    filtered_posts = filter_posts_by_category(all_posts[:10], user_id)
     
     if not filtered_posts:
         await update.message.reply_text("⚠️ لا توجد مواضيع متاحة للفئات المختارة")
@@ -76,7 +77,7 @@ async def show_posts(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     message = format_posts_list(filtered_posts, show_index=True)
     await update.message.reply_markdown(message, disable_web_page_preview=True)
-    logger.info(f"✅ تم عرض {len(filtered_posts)} موضوع")
+    logger.info(f"✅ تم عرض {len(filtered_posts)} موضوع للمستخدم {user_id}")
 
 async def start_monitoring(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """تفعيل المراقبة"""
@@ -101,7 +102,12 @@ async def select_categories(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not check_permission(update):
         return
     
-    logger.info("🏷️ طلب عرض إعدادات الفئات")
+    user_id = update.effective_user.id
+    logger.info(f"🏷️ طلب عرض إعدادات الفئات من المستخدم {user_id}")
+    
+    # تحديد المستخدم الحالي في نظام الفئات
+    category_filter.set_current_user(user_id)
+    
     await update.message.reply_text(
         category_filter.get_status_text(),
         parse_mode="Markdown",
@@ -113,10 +119,14 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not check_permission(update):
         return
     
-    # عرض الفئات المختارة
-    selected = settings_manager.get_selected_categories()
+    user_id = update.effective_user.id
+    
+    # عرض الفئات المختارة للمستخدم
+    selected = settings_manager.get_selected_categories(user_id)
     if len(selected) == 0:
         categories_status = "جميع الفئات"
+    elif "__none__" in selected:
+        categories_status = "لا توجد فئات"
     else:
         categories_status = f"{len(selected)} فئة مختارة"
     
@@ -125,9 +135,9 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "📋 *عرض الطلبات الجديدة* - أول 10 مواضيع\n"
         "🚨 *تفعيل الرصد التلقائي* - مراقبة كل 30 ثانية\n"
         "⛔️ *إيقاف الرصد* - إيقاف المراقبة\n"
-        "🏷️ *اختيار الفئات* - تخصيص الفئات المطلوبة\n"
+        "🏷️ *اختيار الفئات* - تخصيص فئاتك الشخصية\n"
         "🧭 *عرض الأوامر* - هذه الرسالة\n\n"
-        f"📊 *الفئات الحالية:* {categories_status}\n"
+        f"📊 *فئاتك الحالية:* {categories_status}\n"
         "⚡️ يتم إرسال المواضيع الحديثة فقط (أقل من 3 دقائق)",
         parse_mode="Markdown"
     )
