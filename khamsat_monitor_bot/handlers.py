@@ -22,7 +22,7 @@ def get_keyboard(is_admin=False):
     
     if is_admin:
         # إضافة أزرار خاصة بالأدمن
-        basic_keyboard.append(["👥 طلبات الانتظار", "📊 إحصائيات المستخدمين"])
+        basic_keyboard.append(["👑 لوحة تحكم الأدمن"])
     
     return ReplyKeyboardMarkup(basic_keyboard, resize_keyboard=True)
 
@@ -120,6 +120,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     user_id = update.effective_user.id
+    is_admin = user_manager.is_admin(user_id)
     
     # عرض الفئات المختارة للمستخدم
     selected = settings_manager.get_selected_categories(user_id)
@@ -130,17 +131,26 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         categories_status = f"{len(selected)} فئة مختارة"
     
-    await update.message.reply_text(
+    help_text = (
         "🧭 *الأوامر المتاحة:*\n\n"
         "📋 *عرض الطلبات الجديدة* - أول 10 مواضيع\n"
         "🚨 *تفعيل الرصد التلقائي* - مراقبة كل 30 ثانية\n"
         "⛔️ *إيقاف الرصد* - إيقاف المراقبة\n"
         "🏷️ *اختيار الفئات* - تخصيص فئاتك الشخصية\n"
-        "🧭 *عرض الأوامر* - هذه الرسالة\n\n"
-        f"📊 *فئاتك الحالية:* {categories_status}\n"
-        "⚡️ يتم إرسال المواضيع الحديثة فقط (أقل من 3 دقائق)",
-        parse_mode="Markdown"
+        "🧭 *عرض الأوامر* - هذه الرسالة\n"
     )
+    
+    if is_admin:
+        help_text += "\n👑 *أوامر الأدمن:*\n"
+        help_text += "👑 *لوحة تحكم الأدمن* - إدارة المستخدمين\n"
+        help_text += "/admin - فتح لوحة التحكم\n"
+        help_text += "/pending - عرض طلبات الانتظار\n"
+        help_text += "/stats - إحصائيات المستخدمين\n"
+    
+    help_text += f"\n📊 *فئاتك الحالية:* {categories_status}\n"
+    help_text += "⚡️ يتم إرسال المواضيع الحديثة فقط (أقل من 3 دقائق)"
+    
+    await update.message.reply_text(help_text, parse_mode="Markdown")
 
 async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """معالج الأزرار"""
@@ -162,8 +172,7 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # معالجات خاصة بالأدمن
     admin_handlers_dict = {
-        "👥 طلبات الانتظار": admin_handlers.show_pending_users,
-        "📊 إحصائيات المستخدمين": admin_handlers.show_stats
+        "👑 لوحة تحكم الأدمن": admin_handlers.show_admin_menu
     }
     
     # دمج المعالجات حسب صلاحية المستخدم
@@ -175,7 +184,11 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if handler:
         await handler(update, context)
     else:
-        await update.message.reply_text("⚠️ أمر غير معروف. استخدم الأزرار.")
+        # التحقق إذا كان النص يحتوي على معرف مستخدم أو مصطلح بحث للأدمن
+        if is_admin:
+            await admin_handlers.handle_admin_text_input(update, context)
+        else:
+            await update.message.reply_text("⚠️ أمر غير معروف. استخدم الأزرار.")
 
 def is_monitoring_active():
     """فحص حالة المراقبة"""
