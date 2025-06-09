@@ -3,7 +3,7 @@ import nest_asyncio
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, filters
 
 from config import BOT_TOKEN, logger
-from handlers import (start, help_command, handle_buttons, show_admin_panel, test_admin,
+from handlers import (start, help_command, handle_buttons, test_admin,
                      admin_menu_command, approve_user_command, reject_user_command, 
                      remove_user_command, search_user_command, list_users_command)
 from monitor import PostMonitor
