@@ -120,11 +120,19 @@ async def select_categories(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def show_admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """عرض لوحة تحكم الأدمن"""
-    if not user_manager.is_admin(update.effective_user.id):
+    user_id = update.effective_user.id
+    logger.info(f"👑 طلب فتح لوحة تحكم الأدمن من المستخدم {user_id}")
+    
+    if not user_manager.is_admin(user_id):
         await update.message.reply_text("🚫 هذا الأمر خاص بالأدمن فقط")
         return
     
-    await admin_handlers.show_admin_menu(update, context)
+    try:
+        await admin_handlers.show_admin_menu(update, context)
+        logger.info("✅ تم فتح لوحة تحكم الأدمن بنجاح")
+    except Exception as e:
+        logger.error(f"❌ خطأ في فتح لوحة تحكم الأدمن: {e}")
+        await update.message.reply_text("❌ حدث خطأ في فتح لوحة التحكم")
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """عرض المساعدة"""
@@ -173,31 +181,25 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     is_admin = user_manager.is_admin(user_id)
     
-    # المعالجات الأساسية
-    basic_handlers = {
-        "📋 عرض الطلبات الجديدة": show_posts,
-        "🚨 تفعيل الرصد التلقائي": start_monitoring,
-        "⛔️ إيقاف الرصد": stop_monitoring,
-        "🏷️ اختيار الفئات": select_categories,
-        "🧭 عرض الأوامر": help_command
-    }
+    logger.info(f"🔘 المستخدم {user_id} ضغط على: {text}")
     
-    # معالجات خاصة بالأدمن
-    admin_handlers_dict = {
-        "👑 لوحة تحكم الأدمن": show_admin_panel
-    }
-    
-    # دمج المعالجات حسب صلاحية المستخدم
-    handlers = basic_handlers.copy()
-    if is_admin:
-        handlers.update(admin_handlers_dict)
-    
-    handler = handlers.get(text)
-    if handler:
-        await handler(update, context)
+    # معالجة الأزرار الأساسية
+    if text == "📋 عرض الطلبات الجديدة":
+        await show_posts(update, context)
+    elif text == "🚨 تفعيل الرصد التلقائي":
+        await start_monitoring(update, context)
+    elif text == "⛔️ إيقاف الرصد":
+        await stop_monitoring(update, context)
+    elif text == "🏷️ اختيار الفئات":
+        await select_categories(update, context)
+    elif text == "🧭 عرض الأوامر":
+        await help_command(update, context)
+    elif text == "👑 لوحة تحكم الأدمن" and is_admin:
+        logger.info(f"👑 الأدمن {user_id} يفتح لوحة التحكم")
+        await show_admin_panel(update, context)
     else:
         # التحقق إذا كان النص يحتوي على معرف مستخدم أو مصطلح بحث للأدمن
-        if is_admin:
+        if is_admin and hasattr(context, 'user_data') and context.user_data.get('waiting_for'):
             await admin_handlers.handle_admin_text_input(update, context)
         else:
             await update.message.reply_text("⚠️ أمر غير معروف. استخدم الأزرار.")
