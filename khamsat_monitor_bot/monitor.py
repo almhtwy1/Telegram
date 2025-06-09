@@ -59,6 +59,6 @@ class PostMonitor:
                 settings_manager.add_sent_id(post["id"])
             
             if new_posts:
-                logger.info(f"ℹ️ {len(new_posts)} منشور جديد لكن تم تصفيتهم")
+                logger.info(f"ℹ️ {len(new_posts)} منشور جديد لكن لا يطابق فئات أي مستخدم")
             else:
                 logger.info("ℹ️ لا توجد منشورات جديدة")
