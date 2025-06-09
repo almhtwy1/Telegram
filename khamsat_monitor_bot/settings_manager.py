@@ -8,7 +8,7 @@ class SettingsManager:
         self.default_settings = {
             "monitoring_active": False,
             "last_sent_ids": [],
-            "selected_categories": []  # فئات فارغة = كل الفئات
+            "user_categories": {}  # {user_id: [selected_categories]}
         }
         self.settings = self.load_settings()
     
@@ -65,22 +65,41 @@ class SettingsManager:
         self.save_settings()
         logger.info("🗑️ تم مسح معرفات المنشورات المرسلة")
     
-    def set_selected_categories(self, categories):
-        """تحديد الفئات المختارة"""
-        self.settings["selected_categories"] = categories
+    def set_selected_categories(self, categories, user_id=None):
+        """تحديد الفئات المختارة لمستخدم محدد"""
+        if user_id is None:
+            logger.warning("⚠️ لم يتم تحديد معرف المستخدم")
+            return
+        
+        user_id_str = str(user_id)
+        if "user_categories" not in self.settings:
+            self.settings["user_categories"] = {}
+        
+        self.settings["user_categories"][user_id_str] = categories
         self.save_settings()
-        if categories:
-            logger.info(f"🏷️ تم تحديد الفئات: {', '.join(categories)}")
+        
+        if categories and "__none__" not in categories:
+            logger.info(f"🏷️ تم تحديد الفئات للمستخدم {user_id}: {', '.join(categories)}")
+        elif "__none__" in categories:
+            logger.info(f"🏷️ تم إلغاء جميع الفئات للمستخدم {user_id}")
         else:
-            logger.info("🏷️ تم تحديد جميع الفئات")
+            logger.info(f"🏷️ تم تحديد جميع الفئات للمستخدم {user_id}")
     
-    def get_selected_categories(self):
-        """الحصول على الفئات المختارة"""
-        return self.settings.get("selected_categories", [])
+    def get_selected_categories(self, user_id=None):
+        """الحصول على الفئات المختارة لمستخدم محدد"""
+        if user_id is None:
+            return []
+        
+        user_id_str = str(user_id)
+        user_categories = self.settings.get("user_categories", {})
+        return user_categories.get(user_id_str, [])  # فارغة = كل الفئات
     
-    def is_category_selected(self, category):
-        """فحص إذا كانت الفئة مختارة"""
-        selected = self.get_selected_categories()
+    def is_category_selected(self, category, user_id=None):
+        """فحص إذا كانت الفئة مختارة لمستخدم محدد"""
+        if user_id is None:
+            return True
+        
+        selected = self.get_selected_categories(user_id)
         return len(selected) == 0 or category in selected  # فارغة = كل الفئات
 
 # إنشاء مثيل مشترك للاستخدام في باقي الملفات
