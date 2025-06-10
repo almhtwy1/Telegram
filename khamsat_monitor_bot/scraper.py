@@ -1,4 +1,5 @@
 import requests
+from requests.exceptions import RequestException, Timeout, ConnectionError
 from bs4 import BeautifulSoup
 from datetime import datetime, timezone
 from categories import classify_post, CATEGORIES
