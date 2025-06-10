@@ -4,8 +4,8 @@ from config import ALLOWED_USER_ID, logger
 from scraper import fetch_posts
 from formatter import format_posts_list
 
-# حالة المراقبة
-monitoring_state = {"active": False}
+# استيراد مدير الإعدادات
+from settings_manager import settings_manager
 
 def get_keyboard():
     """إنشاء لوحة المفاتيح"""
@@ -26,10 +26,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     logger.info("🚀 تم بدء البوت")
+    
+    # عرض حالة المراقبة الحالية
+    monitoring_status = "🟢 مفعل" if settings_manager.is_monitoring_active() else "🔴 معطل"
+    
     await update.message.reply_text(
-        "🔥 بوت مراقبة خمسات\n"
-        "📈 يعرض المواضيع الحديثة فقط (أقل من 3 دقائق)\n"
-        "اختر أمرًا:",
+        f"🔥 بوت مراقبة خمسات\n"
+        f"📈 يعرض المواضيع الحديثة فقط (أقل من 3 دقائق)\n"
+        f"📊 حالة الرصد التلقائي: {monitoring_status}\n\n"
+        f"اختر أمرًا:",
         reply_markup=get_keyboard()
     )
 
@@ -55,7 +60,7 @@ async def start_monitoring(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not check_permission(update):
         return
     
-    monitoring_state["active"] = True
+    settings_manager.set_monitoring_active(True)
     logger.info("🚨 تم تفعيل الرصد التلقائي")
     await update.message.reply_text("✅ تم تفعيل الرصد التلقائي")
 
@@ -64,7 +69,7 @@ async def stop_monitoring(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not check_permission(update):
         return
     
-    monitoring_state["active"] = False
+    settings_manager.set_monitoring_active(False)
     logger.info("⛔️ تم إيقاف الرصد التلقائي")
     await update.message.reply_text("⛔️ تم إيقاف الرصد")
 
@@ -104,4 +109,4 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def is_monitoring_active():
     """فحص حالة المراقبة"""
-    return monitoring_state["active"]
+    return settings_manager.is_monitoring_active()
