@@ -20,6 +20,8 @@ async def main():
     # إضافة معالجات الأوامر الأساسية
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", help_command))
+    app.add_handler(CommandHandler("pending", admin_handlers.show_pending_users))
+    app.add_handler(CommandHandler("stats", admin_handlers.show_stats))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_buttons))
     
     # إضافة معالجات الاستدعاءات التفاعلية
