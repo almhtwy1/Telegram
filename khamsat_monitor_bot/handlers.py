@@ -87,16 +87,27 @@ async def select_categories(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="Markdown",
         reply_markup=category_filter.create_category_keyboard()
     )
+
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """عرض المساعدة"""
     if not check_permission(update):
         return
+    
+    # عرض الفئات المختارة
+    selected = settings_manager.get_selected_categories()
+    if len(selected) == 0:
+        categories_status = "جميع الفئات"
+    else:
+        categories_status = f"{len(selected)} فئة مختارة"
     
     await update.message.reply_text(
         "🧭 *الأوامر المتاحة:*\n\n"
         "📋 *عرض الطلبات الجديدة* - أول 10 مواضيع\n"
         "🚨 *تفعيل الرصد التلقائي* - مراقبة كل 30 ثانية\n"
         "⛔️ *إيقاف الرصد* - إيقاف المراقبة\n"
+        "🏷️ *اختيار الفئات* - تخصيص الفئات المطلوبة\n"
         "🧭 *عرض الأوامر* - هذه الرسالة\n\n"
+        f"📊 *الفئات الحالية:* {categories_status}\n"
         "⚡️ يتم إرسال المواضيع الحديثة فقط (أقل من 3 دقائق)",
         parse_mode="Markdown"
     )
