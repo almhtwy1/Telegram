@@ -14,7 +14,9 @@ class CategoryFilter:
         keyboard = []
         
         # إضافة أزرار الفئات (صفين في كل صف)
-        categories_list = list(CATEGORIES.keys())
+        categories_list = [cat for cat in CATEGORIES.keys() if cat != "أخرى"]  # استثناء "أخرى"
+        categories_list.append("أخرى")  # إضافة "أخرى" في النهاية
+        
         for i in range(0, len(categories_list), 2):
             row = []
             for j in range(2):
@@ -23,8 +25,10 @@ class CategoryFilter:
                     icon = CATEGORIES[category]["icon"]
                     
                     # تحديد إذا كانت الفئة مختارة
-                    if len(selected_categories) == 0:  # كل الفئات مختارة
-                        status = "✅"
+                    if "__none__" in selected_categories:
+                        status = ""  # لا شيء مختار
+                    elif len(selected_categories) == 0:
+                        status = "✅"  # كل الفئات مختارة
                     elif category in selected_categories:
                         status = "✅"
                     else:
@@ -54,11 +58,14 @@ class CategoryFilter:
         
         if len(selected) == 0:
             return "🏷️ *إعدادات الفئات*\n\n📊 الحالة الحالية: جميع الفئات مفعلة\n\n👆 اختر الفئات التي تريد متابعتها:"
+        elif "__none__" in selected:
+            return "🏷️ *إعدادات الفئات*\n\n📊 الحالة الحالية: لا توجد فئات مختارة\n\n👆 اختر الفئات التي تريد متابعتها:"
         else:
             categories_text = []
             for category in selected:
-                icon = CATEGORIES[category]["icon"]
-                categories_text.append(f"{icon} {category}")
+                if category in CATEGORIES:  # تأكد من أن الفئة موجودة
+                    icon = CATEGORIES[category]["icon"]
+                    categories_text.append(f"{icon} {category}")
             
             categories_str = " | ".join(categories_text)
             return f"🏷️ *إعدادات الفئات*\n\n📊 الفئات المختارة:\n{categories_str}\n\n👆 اختر الفئات التي تريد متابعتها:"
@@ -81,7 +88,7 @@ class CategoryFilter:
             logger.info("🏷️ تم تحديد جميع الفئات")
             
         elif action == "clear_all":
-            # إلغاء جميع الفئات (تحديد فئة واحدة غير موجودة لإيقاف كل شيء)
+            # إلغاء جميع الفئات (قائمة تحتوي على فئة وهمية)
             settings_manager.set_selected_categories(["__none__"])
             logger.info("🏷️ تم إلغاء جميع الفئات")
             
@@ -92,13 +99,19 @@ class CategoryFilter:
             
         elif action in CATEGORIES:
             # تبديل حالة فئة معينة
-            if len(selected_categories) == 0:
-                # إذا كانت كل الفئات مختارة، ابدأ بقائمة فارغة واختر هذه الفئة فقط
+            if "__none__" in selected_categories:
+                # إذا كانت في وضع "لا شيء"، ابدأ بفئة واحدة جديدة
+                selected_categories = [action]
+            elif len(selected_categories) == 0:
+                # إذا كانت كل الفئات مختارة، ابدأ بقائمة جديدة واختر هذه الفئة فقط
                 selected_categories = [action]
             else:
                 # إذا كانت الفئة مختارة، احذفها، وإلا أضفها
                 if action in selected_categories:
                     selected_categories.remove(action)
+                    # إذا أصبحت القائمة فارغة، اجعلها "__none__"
+                    if not selected_categories:
+                        selected_categories = ["__none__"]
                 else:
                     selected_categories.append(action)
             
