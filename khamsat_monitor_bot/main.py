@@ -1,11 +1,12 @@
 import asyncio
 import nest_asyncio
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, filters
 
 from config import BOT_TOKEN, logger
 from handlers import start, help_command, handle_buttons
 from monitor import PostMonitor
 from settings_manager import settings_manager
+from category_filter import category_filter
 
 async def main():
     """الدالة الرئيسية لتشغيل البوت"""
@@ -18,6 +19,7 @@ async def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_buttons))
+    app.add_handler(CallbackQueryHandler(category_filter.handle_callback))
     
     # إنشاء نظام المراقبة
     monitor = PostMonitor()
