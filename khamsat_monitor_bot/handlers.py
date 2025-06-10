@@ -3,7 +3,6 @@ from telegram.ext import ContextTypes
 from config import ALLOWED_USER_ID, logger
 from scraper import fetch_posts
 from formatter import format_posts_list
-
 # استيراد مدير الإعدادات
 from settings_manager import settings_manager
 
