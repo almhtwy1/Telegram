@@ -1,137 +1,84 @@
-from telegram import Update, ReplyKeyboardMarkup
+from telegram import Update
 from telegram.ext import ContextTypes
-from config import ALLOWED_USER_ID, logger
-from scraper import fetch_posts
-from formatter import format_posts_list
-# استيراد مدير الإعدادات
-from settings_manager import settings_manager
-from category_filter import category_filter
-from post_filter import filter_posts_by_category
+from user_manager import user_manager
+from config import logger
 
-def get_keyboard():
-    """إنشاء لوحة المفاتيح"""
-    return ReplyKeyboardMarkup([
-        ["📋 عرض الطلبات الجديدة"],
-        ["🚨 تفعيل الرصد التلقائي", "⛔️ إيقاف الرصد"],
-        ["🏷️ اختيار الفئات", "🧭 عرض الأوامر"]
-    ], resize_keyboard=True)
+class AccessControl:
+    
+    @staticmethod
+    async def check_user_access(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """فحص صلاحية وصول المستخدم"""
+        user = update.effective_user
+        user_id = user.id
+        
+        # فحص إذا كان المستخدم أدمن
+        if user_manager.is_admin(user_id):
+            return True
+        
+        # فحص إذا كان المستخدم معتمد
+        if user_manager.is_approved(user_id):
+            return True
+        
+        # فحص إذا كان المستخدم مرفوض
+        if user_manager.is_rejected(user_id):
+            await update.message.reply_text(
+                "😔 تم رفض طلب اشتراكك سابقاً.\n"
+                "إذا كنت تعتقد أن هذا خطأ، يمكنك التواصل مع الإدارة."
+            )
+            return False
+        
+        # فحص إذا كان المستخدم في الانتظار
+        if user_manager.is_pending(user_id):
+            await update.message.reply_text(
+                "⏳ طلب اشتراكك قيد المراجعة.\n"
+                "سيتم إشعارك عند الموافقة على طلبك."
+            )
+            return False
+        
+        # مستخدم جديد - إضافة للانتظار
+        username = user.username
+        first_name = user.first_name
+        
+        if user_manager.add_pending_user(user_id, username, first_name):
+            # إرسال إشعار للأدمن
+            await AccessControl._notify_admin_new_user(context, user_id, username, first_name)
+            
+            await update.message.reply_text(
+                "🔔 تم استلام طلب اشتراكك!\n\n"
+                "⏳ طلبك قيد المراجعة من قبل الإدارة.\n"
+                "سيتم إشعارك عند الموافقة على طلبك.\n\n"
+                "شكراً لصبرك! 🙏"
+            )
+        else:
+            await update.message.reply_text(
+                "❌ حدث خطأ في معالجة طلبك.\n"
+                "يرجى المحاولة مرة أخرى لاحقاً."
+            )
+        
+        return False
+    
+    @staticmethod
+    async def _notify_admin_new_user(context: ContextTypes.DEFAULT_TYPE, user_id, username, first_name):
+        """إشعار الأدمن بمستخدم جديد"""
+        try:
+            admin_id = user_manager.admin_id
+            message = (
+                "🔔 *طلب اشتراك جديد!*\n\n"
+                f"👤 *الاسم:* {first_name or 'غير محدد'}\n"
+                f"📱 *المعرف:* @{username or 'غير محدد'}\n"
+                f"🆔 *ID:* `{user_id}`\n\n"
+                "استخدم /pending لعرض الطلبات المعلقة."
+            )
+            
+            await context.bot.send_message(
+                chat_id=admin_id,
+                text=message,
+                parse_mode="Markdown"
+            )
+            logger.info(f"📤 تم إرسال إشعار للأدمن عن المستخدم الجديد: {first_name}")
+            
+        except Exception as e:
+            logger.error(f"❌ فشل إرسال إشعار الأدمن: {e}")
 
-def check_permission(update: Update):
-    """فحص صلاحية المستخدم"""
-    return update.effective_user.id == ALLOWED_USER_ID
-
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """بدء البوت"""
-    if not check_permission(update):
-        await update.message.reply_text("🚫 لا تملك صلاحية استخدام هذا البوت.")
-        return
-
-    logger.info("🚀 تم بدء البوت")
-    
-    # عرض حالة المراقبة الحالية
-    monitoring_status = "🟢 مفعل" if settings_manager.is_monitoring_active() else "🔴 معطل"
-    
-    await update.message.reply_text(
-        f"🔥 بوت مراقبة خمسات\n"
-        f"📈 يعرض المواضيع الحديثة فقط (أقل من 3 دقائق)\n"
-        f"📊 حالة الرصد التلقائي: {monitoring_status}\n\n"
-        f"اختر أمرًا:",
-        reply_markup=get_keyboard()
-    )
-
-async def show_posts(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """عرض المنشورات"""
-    if not check_permission(update):
-        return
-    
-    logger.info("📋 طلب عرض المنشورات")
-    recent_posts, all_posts = fetch_posts()
-    
-    # تطبيق تصفية الفئات
-    filtered_posts = filter_posts_by_category(all_posts[:10])
-    
-    if not filtered_posts:
-        await update.message.reply_text("⚠️ لا توجد مواضيع متاحة للفئات المختارة")
-        return
-    
-    message = format_posts_list(filtered_posts, show_index=True)
-    await update.message.reply_markdown(message, disable_web_page_preview=True)
-    logger.info(f"✅ تم عرض {len(filtered_posts)} موضوع")
-
-async def start_monitoring(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """تفعيل المراقبة"""
-    if not check_permission(update):
-        return
-    
-    settings_manager.set_monitoring_active(True)
-    logger.info("🚨 تم تفعيل الرصد التلقائي")
-    await update.message.reply_text("✅ تم تفعيل الرصد التلقائي")
-
-async def stop_monitoring(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """إيقاف المراقبة"""
-    if not check_permission(update):
-        return
-    
-    settings_manager.set_monitoring_active(False)
-    logger.info("⛔️ تم إيقاف الرصد التلقائي")
-    await update.message.reply_text("⛔️ تم إيقاف الرصد")
-
-async def select_categories(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """عرض قائمة اختيار الفئات"""
-    if not check_permission(update):
-        return
-    
-    logger.info("🏷️ طلب عرض إعدادات الفئات")
-    await update.message.reply_text(
-        category_filter.get_status_text(),
-        parse_mode="Markdown",
-        reply_markup=category_filter.create_category_keyboard()
-    )
-
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """عرض المساعدة"""
-    if not check_permission(update):
-        return
-    
-    # عرض الفئات المختارة
-    selected = settings_manager.get_selected_categories()
-    if len(selected) == 0:
-        categories_status = "جميع الفئات"
-    else:
-        categories_status = f"{len(selected)} فئة مختارة"
-    
-    await update.message.reply_text(
-        "🧭 *الأوامر المتاحة:*\n\n"
-        "📋 *عرض الطلبات الجديدة* - أول 10 مواضيع\n"
-        "🚨 *تفعيل الرصد التلقائي* - مراقبة كل 30 ثانية\n"
-        "⛔️ *إيقاف الرصد* - إيقاف المراقبة\n"
-        "🏷️ *اختيار الفئات* - تخصيص الفئات المطلوبة\n"
-        "🧭 *عرض الأوامر* - هذه الرسالة\n\n"
-        f"📊 *الفئات الحالية:* {categories_status}\n"
-        "⚡️ يتم إرسال المواضيع الحديثة فقط (أقل من 3 دقائق)",
-        parse_mode="Markdown"
-    )
-
-async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """معالج الأزرار"""
-    if not check_permission(update):
-        return
-    
-    text = update.message.text
-    handlers = {
-        "📋 عرض الطلبات الجديدة": show_posts,
-        "🚨 تفعيل الرصد التلقائي": start_monitoring,
-        "⛔️ إيقاف الرصد": stop_monitoring,
-        "🏷️ اختيار الفئات": select_categories,
-        "🧭 عرض الأوامر": help_command
-    }
-    
-    handler = handlers.get(text)
-    if handler:
-        await handler(update, context)
-    else:
-        await update.message.reply_text("⚠️ أمر غير معروف. استخدم الأزرار.")
-
-def is_monitoring_active():
-    """فحص حالة المراقبة"""
-    return settings_manager.is_monitoring_active()
+# إنشاء مثيل مشترك
+access_control = AccessControl()
