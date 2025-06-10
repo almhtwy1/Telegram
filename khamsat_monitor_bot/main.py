@@ -1,68 +1,28 @@
 import asyncio
 import nest_asyncio
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, filters
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters
 
 from config import BOT_TOKEN, logger
-from handlers import (start, help_command, handle_buttons, test_admin,
-                     admin_menu_command, approve_user_command, reject_user_command, 
-                     remove_user_command, search_user_command, list_users_command)
+from handlers import start, help_command, handle_buttons
 from monitor import PostMonitor
-from settings_manager import settings_manager
-from category_filter import category_filter
-from admin_handlers import admin_handlers
-from user_manager import user_manager
-from migration_helper import migrate_old_settings
 
 async def main():
     """الدالة الرئيسية لتشغيل البوت"""
     logger.info("🚀 بدء تشغيل بوت خمسات...")
     
-    # ترحيل الإعدادات القديمة إذا لزم الأمر
-    migrate_old_settings()
-    
     # إنشاء تطبيق البوت
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     
-    # إضافة معالجات الأوامر الأساسية
+    # إضافة معالجات الأوامر
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", help_command))
-    
-    # أوامر الأدمن
-    app.add_handler(CommandHandler("admin", admin_menu_command))
-    app.add_handler(CommandHandler("menu", admin_menu_command))
-    app.add_handler(CommandHandler("test", test_admin))
-    app.add_handler(CommandHandler("pending", admin_handlers.show_pending_users))
-    app.add_handler(CommandHandler("stats", admin_handlers.show_stats))
-    app.add_handler(CommandHandler("approve", approve_user_command))
-    app.add_handler(CommandHandler("reject", reject_user_command))
-    app.add_handler(CommandHandler("remove", remove_user_command))
-    app.add_handler(CommandHandler("search", search_user_command))
-    app.add_handler(CommandHandler("list", list_users_command))
-    app.add_handler(CommandHandler("cancel", lambda update, context: update.message.reply_text("❌ تم إلغاء العملية")))
-    
-    # معالج الرسائل العادية
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_buttons))
-    
-    # إضافة معالجات الاستدعاءات التفاعلية
-    app.add_handler(CallbackQueryHandler(category_filter.handle_callback, pattern="^cat_"))
-    app.add_handler(CallbackQueryHandler(admin_handlers.handle_admin_callback, pattern="^admin_"))
     
     # إنشاء نظام المراقبة
     monitor = PostMonitor()
     asyncio.create_task(monitor.monitor_loop(app))
     
-    # عرض معلومات التشغيل
-    stats = user_manager.get_stats()
-    logger.info(f"👥 المستخدمين المعتمدين: {stats['approved']}")
-    logger.info(f"⏳ طلبات الانتظار: {stats['pending']}")
-    
-    # عرض حالة المراقبة عند بدء التشغيل
-    if settings_manager.is_monitoring_active():
-        logger.info("🟢 البوت سيعمل بوضع المراقبة التلقائية (محفوظ من الجلسة السابقة)")
-    else:
-        logger.info("🔴 البوت يعمل بوضع يدوي - استخدم /start لتفعيل المراقبة")
-    
-    logger.info("✅ البوت جاهز للعمل!")
+    logger.info("✅ البوت جاهز!")
     await app.run_polling()
 
 if __name__ == "__main__":
