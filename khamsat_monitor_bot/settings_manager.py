@@ -7,7 +7,8 @@ class SettingsManager:
         self.settings_file = settings_file
         self.default_settings = {
             "monitoring_active": False,
-            "last_sent_ids": []
+            "last_sent_ids": [],
+            "selected_categories": []  # فئات فارغة = كل الفئات
         }
         self.settings = self.load_settings()
     
@@ -63,6 +64,24 @@ class SettingsManager:
         self.settings["last_sent_ids"] = []
         self.save_settings()
         logger.info("🗑️ تم مسح معرفات المنشورات المرسلة")
+    
+    def set_selected_categories(self, categories):
+        """تحديد الفئات المختارة"""
+        self.settings["selected_categories"] = categories
+        self.save_settings()
+        if categories:
+            logger.info(f"🏷️ تم تحديد الفئات: {', '.join(categories)}")
+        else:
+            logger.info("🏷️ تم تحديد جميع الفئات")
+    
+    def get_selected_categories(self):
+        """الحصول على الفئات المختارة"""
+        return self.settings.get("selected_categories", [])
+    
+    def is_category_selected(self, category):
+        """فحص إذا كانت الفئة مختارة"""
+        selected = self.get_selected_categories()
+        return len(selected) == 0 or category in selected  # فارغة = كل الفئات
 
 # إنشاء مثيل مشترك للاستخدام في باقي الملفات
 settings_manager = SettingsManager()
