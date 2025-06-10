@@ -3,10 +3,12 @@ from config import ALLOWED_USER_ID, MONITORING_INTERVAL, logger
 from scraper import fetch_posts
 from formatter import format_new_posts_alert
 from handlers import is_monitoring_active
+from settings_manager import settings_manager
 
 class PostMonitor:
     def __init__(self):
-        self.last_sent_ids = set()
+        # تحميل المعرفات المحفوظة من الإعدادات
+        self.last_sent_ids = settings_manager.get_sent_ids()
     
     async def monitor_loop(self, application):
         """حلقة المراقبة التلقائية"""
@@ -40,9 +42,10 @@ class PostMonitor:
                     disable_web_page_preview=True
                 )
                 
-                # حفظ معرفات المنشورات المرسلة
+                # حفظ معرفات المنشورات المرسلة في الإعدادات
                 for post in new_posts:
                     self.last_sent_ids.add(post["id"])
+                    settings_manager.add_sent_id(post["id"])
                 
                 logger.info(f"✅ تم إرسال {len(new_posts)} منشور")
         else:
